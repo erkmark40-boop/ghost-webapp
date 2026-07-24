@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>GHOST TRAFИК · Admin</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050506;
+    --surface:rgba(255,255,255,0.035);
+    --surface-2:rgba(255,255,255,0.055);
+    --line:rgba(255,255,255,0.08);
+    --line-red:rgba(255,33,64,0.35);
+    --red:#FF2140;
+    --red-2:#B8102A;
+    --red-soft:rgba(255,33,64,0.16);
+    --red-glow:rgba(255,33,64,0.5);
+    --text:#ECEDF3;
+    --text-dim:#9A9EAE;
+    --text-faint:#585C6B;
+    --green:#3FDB8F;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased; padding:16px 16px 40px; position:relative; min-height:100vh;
+  }
+  body::before{
+    content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(ellipse 560px 380px at 50% -8%, rgba(255,33,64,0.2), transparent 65%),
+      var(--bg);
+  }
+  h1{font-family:'Space Grotesk',sans-serif; font-size:15px; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+  h1::before{content:''; width:5px; height:5px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red-glow);}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  label{display:block; font-size:12px; color:var(--text-dim); margin:12px 0 6px;}
+  select, input{
+    width:100%; background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    color:var(--text); padding:12px 13px; font-size:14px; font-family:inherit;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  select:focus, input:focus, textarea:focus{
+    outline:none; border-color:var(--line-red); box-shadow:0 0 0 3px rgba(255,33,64,0.15);
+  }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .card{
+    background:linear-gradient(180deg, var(--surface-2), var(--surface));
+    border:1px solid var(--line); border-radius:18px; padding:17px;
+    margin-bottom:18px; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    box-shadow:0 10px 28px rgba(0,0,0,0.35);
+  }
+  .btn{
+    margin-top:16px; width:100%; border:none; border-radius:12px;
+    background:linear-gradient(135deg, var(--red), var(--red-2)); color:#fff; font-weight:700;
+    padding:13px; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-size:14.5px;
+    box-shadow:0 8px 22px rgba(255,33,64,0.32); transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn:disabled{opacity:0.5; box-shadow:none;}
+  .btn.secondary{background:var(--surface-2); border:1px solid var(--line); color:var(--text); box-shadow:none;}
+  .msg{margin-top:10px; font-size:13px;}
+  .msg.ok{color:#fff;} .msg.ok::before{content:'✓ '; color:var(--red);}
+  .msg.err{color:#FF6B7D;}
+  .list-item{
+    display:flex; justify-content:space-between; align-items:center; padding:12px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .list-item:last-child{border-bottom:none;}
+  .code{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14.5px; color:#fff; letter-spacing:0.3px;}
+  .meta{font-size:11px; color:var(--text-faint); margin-top:3px;}
+  .badge{font-size:11px; padding:4px 9px; border-radius:999px; font-weight:600;}
+  .badge.active{background:rgba(255,33,64,0.15); color:#ff8a97; border:1px solid var(--line-red);}
+  .badge.inactive{background:rgba(255,255,255,0.05); color:var(--text-faint); border:1px solid var(--line);}
+  .off-btn{
+    border:1px solid var(--line); background:var(--surface); color:var(--text-dim);
+    border-radius:9px; padding:6px 11px; font-size:12px; cursor:pointer; margin-left:8px;
+    transition:border-color .15s ease;
+  }
+  .off-btn:active{border-color:var(--line-red); color:#ff8a97;}
+
+  .stats-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat-item{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px;
+    position:relative; overflow:hidden;
+  }
+  .stat-item::after{
+    content:''; position:absolute; inset:-60% -20% auto auto; width:100px; height:100px;
+    background:radial-gradient(circle, rgba(255,33,64,0.18), transparent 70%); pointer-events:none;
+  }
+  .stat-value{font-family:'Space Grotesk',sans-serif; font-size:23px; font-weight:700; line-height:1.1;
+    background:linear-gradient(90deg, #fff, #ffb3bd); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .stat-label{font-size:11px; color:var(--text-dim); margin-top:5px;}
+  .stat-sub{font-size:11px; color:var(--text-faint); margin-top:2px;}
+  textarea{
+    width:100%; background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    color:var(--text); padding:12px 13px; font-size:14px; font-family:inherit; resize:vertical; min-height:100px;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .char-count{font-size:11px; color:var(--text-faint); text-align:right; margin-top:4px;}
+</style>
+</head>
+<body>
+
+<h1>Статистика · GHOST TRAFИК</h1>
+
+<div class="card">
+  <div id="stats" class="stats-grid">
+    <div style="font-size:13px; color:var(--text-faint);">Загрузка…</div>
+  </div>
+  <button class="btn secondary" id="export-users-btn">Экспорт базы пользователей (.xlsx)</button>
+  <div class="msg" id="export-msg"></div>
+</div>
+
+<h1>Рассылка · GHOST TRAFИК</h1>
+
+<div class="card">
+  <label style="margin-top:0;">Кому отправить</label>
+  <select id="broadcast-audience">
+    <option value="all">Всем пользователям</option>
+    <option value="active">Только с активной подпиской</option>
+    <option value="inactive">Только без подписки</option>
+  </select>
+
+  <label>Текст сообщения</label>
+  <textarea id="broadcast-text" maxlength="4096" placeholder="Текст рассылки..."></textarea>
+  <div class="char-count"><span id="broadcast-count">0</span>/4096</div>
+
+  <button class="btn" id="broadcast-btn">Отправить рассылку</button>
+  <div class="msg" id="broadcast-msg"></div>
+</div>
+
+<h1>Промокоды · GHOST TRAFИК</h1>
+
+<div class="card">
+  <label style="margin-top:0;">Тип промокода</label>
+  <select id="kind">
+    <option value="days">Фиксированное число дней</option>
+    <option value="tariff">Полный тариф подписки</option>
+  </select>
+
+  <div id="days-field">
+    <label>Количество дней</label>
+    <input type="number" id="days" placeholder="30" min="1">
+  </div>
+
+  <div id="tariff-field" style="display:none;">
+    <label>Тариф</label>
+    <select id="tariff_id"></select>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label>Лимит активаций</label>
+      <input type="number" id="max_uses" value="1" min="1">
+    </div>
+    <div>
+      <label>Действителен до (опц.)</label>
+      <input type="date" id="expires_at">
+    </div>
+  </div>
+
+  <label>Свой код (опц., иначе сгенерируется)</label>
+  <input type="text" id="code" placeholder="GHOST2026" maxlength="32" style="text-transform:uppercase;">
+
+  <button class="btn" id="create-btn">Создать промокод</button>
+  <div class="msg" id="create-msg"></div>
+</div>
+
+<div class="card">
+  <label style="margin-top:0;">Все промокоды</label>
+  <div id="list"></div>
+</div>
+
+<script>
+const API_BASE = "https://example.com/api";
+const tg = window.Telegram?.WebApp;
+tg?.ready(); tg?.expand();
+const initData = tg?.initData || "";
+
+async function api(path, options={}){
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: {'Content-Type':'application/json', 'X-Telegram-Init-Data': initData, ...(options.headers||{})},
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.detail || 'Ошибка запроса');
+  return data;
+}
+
+function statItem(value, label, sub){
+  return `
+    <div class="stat-item">
+      <div class="stat-value mono">${value}</div>
+      <div class="stat-label">${label}</div>
+      ${sub ? `<div class="stat-sub">${sub}</div>` : ''}
+    </div>`;
+}
+
+async function renderStats(){
+  const el = document.getElementById('stats');
+  try{
+    const s = await api('/admin/stats');
+    el.innerHTML = [
+      statItem(s.total_users, 'Всего пользователей'),
+      statItem(s.active_users, 'Активных пользователей'),
+      statItem(s.active_subscriptions, 'Активных подписок', 'с успешной оплатой'),
+      statItem(s.new_users_today, 'Новых регистраций', `сегодня · за 7 дней: ${s.new_users_7d}`),
+      statItem(s.new_paid_today, 'Новых платных подписок', `сегодня · за 7 дней: ${s.new_paid_7d}`),
+    ].join('');
+  } catch(e){
+    el.innerHTML = `<div class="msg err">${e.message}</div>`;
+  }
+}
+
+document.getElementById('export-users-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('export-users-btn');
+  const msg = document.getElementById('export-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  btn.disabled = true;
+  msg.textContent = 'Формирование файла...';
+  try{
+    const res = await fetch(API_BASE + '/admin/users/export', {
+      headers: {'X-Telegram-Init-Data': initData},
+    });
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.detail || 'Ошибка экспорта');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users_export_${Date.now()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    msg.textContent = 'Файл сформирован.';
+  } catch(e){
+    msg.classList.add('err');
+    msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('broadcast-text').addEventListener('input', e=>{
+  document.getElementById('broadcast-count').textContent = e.target.value.length;
+});
+
+document.getElementById('broadcast-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('broadcast-btn');
+  const msg = document.getElementById('broadcast-msg');
+  msg.className = 'msg'; msg.textContent = '';
+
+  const audience = document.getElementById('broadcast-audience').value;
+  const text = document.getElementById('broadcast-text').value.trim();
+  const audienceLabel = document.getElementById('broadcast-audience').selectedOptions[0].textContent;
+
+  if(!text){ msg.classList.add('err'); msg.textContent = 'Введи текст сообщения.'; return; }
+  if(!confirm(`Отправить это сообщение: «${audienceLabel}»? Действие необратимо.`)) return;
+
+  btn.disabled = true;
+  msg.textContent = 'Отправка...';
+  try{
+    const res = await api('/admin/broadcast', {method:'POST', body: JSON.stringify({audience, text})});
+    msg.classList.add('ok');
+    msg.textContent = `Готово: ${res.sent} из ${res.total} доставлено` + (res.failed ? `, ${res.failed} не доставлено` : '');
+  } catch(e){
+    msg.classList.add('err');
+    msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('kind').addEventListener('change', e=>{
+  const isTariff = e.target.value === 'tariff';
+  document.getElementById('days-field').style.display = isTariff ? 'none' : 'block';
+  document.getElementById('tariff-field').style.display = isTariff ? 'block' : 'none';
+});
+
+function fmtDate(iso){
+  if(!iso) return 'бессрочно';
+  return new Date(iso).toLocaleDateString('ru-RU');
+}
+
+async function renderList(){
+  const listEl = document.getElementById('list');
+  try{
+    const data = await api('/admin/promocodes');
+    const tariffSelect = document.getElementById('tariff_id');
+    tariffSelect.innerHTML = data.tariffs.map(t=>`<option value="${t.id}">${t.title} (${t.days} дн.)</option>`).join('');
+
+    if(!data.promocodes.length){
+      listEl.innerHTML = '<div style="font-size:13px; color:var(--text-faint);">Пока нет ни одного промокода.</div>';
+      return;
+    }
+    listEl.innerHTML = data.promocodes.map(p=>{
+      const desc = p.kind === 'days' ? `${p.days} дн.` : `тариф ${p.tariff_id}`;
+      return `
+        <div class="list-item">
+          <div>
+            <div class="code">${p.code}</div>
+            <div class="meta">${desc} · использован ${p.used_count}/${p.max_uses} · до ${fmtDate(p.expires_at)}</div>
+          </div>
+          <div style="display:flex; align-items:center;">
+            <span class="badge ${p.active ? 'active' : 'inactive'}">${p.active ? 'активен' : 'выключен'}</span>
+            ${p.active ? `<button class="off-btn" data-code="${p.code}">Выключить</button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.off-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        try{
+          await api(`/admin/promocodes/${btn.dataset.code}/deactivate`, {method:'POST'});
+          renderList();
+        } catch(e){ alert(e.message); btn.disabled = false; }
+      });
+    });
+  } catch(e){
+    listEl.innerHTML = `<div class="msg err">${e.message}</div>`;
+  }
+}
+
+document.getElementById('create-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('create-btn');
+  const msg = document.getElementById('create-msg');
+  msg.className = 'msg'; msg.textContent = '';
+
+  const kind = document.getElementById('kind').value;
+  const body = {
+    kind,
+    max_uses: parseInt(document.getElementById('max_uses').value || '1', 10),
+    code: document.getElementById('code').value.trim() || null,
+  };
+  const expires = document.getElementById('expires_at').value;
+  if(expires) body.expires_at = new Date(expires + 'T23:59:59').toISOString();
+
+  if(kind === 'days'){
+    body.days = parseInt(document.getElementById('days').value || '0', 10);
+    if(!body.days){ msg.classList.add('err'); msg.textContent = 'Укажи количество дней.'; return; }
+  } else {
+    body.tariff_id = document.getElementById('tariff_id').value;
+  }
+
+  btn.disabled = true;
+  try{
+    const res = await api('/admin/promocodes', {method:'POST', body: JSON.stringify(body)});
+    msg.classList.add('ok');
+    msg.textContent = `Создан промокод ${res.promocode.code}`;
+    document.getElementById('code').value = '';
+    renderList();
+  } catch(e){
+    msg.classList.add('err');
+    msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+renderStats();
+renderList();
+</script>
+</body>
+</html>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>GHOST TRAFИК</title>
+<link rel="icon" href="ghost-icon.webp">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050506;
+    --surface:rgba(255,255,255,0.035);
+    --surface-2:rgba(255,255,255,0.055);
+    --surface-solid:#121013;
+    --line:rgba(255,255,255,0.08);
+    --line-red:rgba(255,33,64,0.35);
+    --red:#FF2140;
+    --red-2:#B8102A;
+    --red-soft:rgba(255,33,64,0.16);
+    --red-glow:rgba(255,33,64,0.55);
+    --white:#F5F6FA;
+    --text:#ECEDF3;
+    --text-dim:#9A9EAE;
+    --text-faint:#585C6B;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{background:var(--bg);}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+    padding:16px 16px 44px; min-height:100vh; position:relative; overflow-x:hidden;
+  }
+  body::before{
+    content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(ellipse 620px 420px at 50% -8%, rgba(255,33,64,0.22), transparent 65%),
+      radial-gradient(ellipse 500px 500px at 110% 30%, rgba(255,33,64,0.08), transparent 60%),
+      var(--bg);
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif; margin:0;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  ::selection{background:var(--red); color:#fff;}
+
+  @keyframes riseIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes pulseGlow{ 0%,100%{opacity:0.55;} 50%{opacity:1;} }
+  @keyframes popIn{ from{opacity:0; transform:scale(.85);} to{opacity:1; transform:scale(1);} }
+  @keyframes spark{ 0%{transform:scale(0) rotate(0deg); opacity:1;} 100%{transform:scale(1.6) rotate(160deg); opacity:0;} }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;
+    animation:riseIn .5s ease both;
+  }
+  .brand{display:flex; align-items:center; gap:9px;}
+  .brand-icon{
+    width:30px; height:30px; border-radius:9px; object-fit:cover;
+    box-shadow:0 0 0 1px var(--line-red), 0 0 18px rgba(255,33,64,0.45);
+  }
+  .brand-name{
+    font-size:15px; font-weight:700; letter-spacing:0.4px;
+    background:linear-gradient(90deg, #fff, #ffb3bd 60%, var(--red));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .uid-pill{
+    font-size:11px; color:var(--text-faint); background:var(--surface);
+    border:1px solid var(--line); border-radius:999px; padding:5px 10px;
+  }
+
+  .glass-card{
+    background:linear-gradient(180deg, var(--surface-2), var(--surface));
+    border:1px solid var(--line); border-radius:20px; backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px); box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  .status-card{
+    padding:18px; display:flex; gap:16px; align-items:center; margin-bottom:18px;
+    position:relative; overflow:hidden; animation:riseIn .5s ease .05s both;
+  }
+  .status-card::after{
+    content:''; position:absolute; inset:-40% -10% auto auto; width:180px; height:180px;
+    background:radial-gradient(circle, rgba(255,33,64,0.35), transparent 70%);
+    pointer-events:none;
+  }
+  .ring{position:relative; width:72px; height:72px; flex-shrink:0;}
+  .ring svg{transform:rotate(-90deg); filter:drop-shadow(0 0 6px rgba(255,33,64,0.55));}
+  .ring-bg{fill:none; stroke:rgba(255,255,255,0.08); stroke-width:5;}
+  .ring-fg{fill:none; stroke:url(#ringGrad); stroke-width:5; stroke-linecap:round; transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1);}
+  .ring-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .status-info{flex:1; min-width:0;}
+  .status-title{font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1px; margin-bottom:3px;}
+  .status-value{font-size:16px; font-weight:600; font-family:'Space Grotesk',sans-serif;}
+  .status-pills{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
+  .pill{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,0.05); border:1px solid var(--line); border-radius:999px;
+    padding:5px 10px; font-size:12.5px; color:var(--text-dim);
+  }
+  .pill .mono{color:var(--white); font-weight:700;}
+  .pill.red{border-color:var(--line-red); color:#ffb3bd;}
+
+  section{margin-bottom:24px; animation:riseIn .5s ease both;}
+  section:nth-of-type(2){animation-delay:.08s;}
+  section:nth-of-type(3){animation-delay:.12s;}
+  section:nth-of-type(4){animation-delay:.16s;}
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:11px;}
+  .section-title{font-size:14px; font-weight:700; letter-spacing:0.3px; font-family:'Space Grotesk',sans-serif;}
+  .section-title::before{content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--red); margin-right:7px; box-shadow:0 0 8px var(--red-glow); vertical-align:middle;}
+  .section-sub{font-size:12px; color:var(--text-faint);}
+
+  /* --- Рулетка (горизонтальная лента) --- */
+  .reel-card{padding:20px 16px 22px;}
+  .reel-viewport{
+    position:relative; height:96px; overflow:hidden; border-radius:16px;
+    background:rgba(0,0,0,0.4); border:1px solid var(--line); margin-bottom:16px;
+  }
+  .reel-track{
+    position:absolute; top:0; left:0; height:100%; display:flex; align-items:center;
+    gap:10px; padding-left:0; will-change:transform;
+  }
+  .reel-item{
+    flex:0 0 78px; width:78px; height:76px; border-radius:13px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  }
+  .reel-item-red{background:linear-gradient(160deg, rgba(255,33,64,0.32), rgba(140,14,34,0.14)); border:1px solid var(--line-red);}
+  .reel-item-dark{background:rgba(255,255,255,0.045); border:1px solid var(--line);}
+  .reel-item-icon{font-size:21px;}
+  .reel-item-label{font-size:12.5px; font-weight:700; color:#fff;}
+  @keyframes itemWinPulse{
+    0%,100%{box-shadow:0 0 10px var(--red-glow);}
+    50%{box-shadow:0 0 0 2px #fff, 0 0 28px var(--red-glow);}
+  }
+  .reel-item-win{animation:itemWinPulse 1s ease-in-out infinite;}
+  .reel-marker{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:88px; height:100%; border-radius:15px; border:2px solid var(--red);
+    box-shadow:0 0 18px var(--red-glow); pointer-events:none; z-index:2;
+  }
+  .reel-marker::before, .reel-marker::after{
+    content:''; position:absolute; left:50%; transform:translateX(-50%); width:0; height:0;
+    border-left:7px solid transparent; border-right:7px solid transparent;
+  }
+  .reel-marker::before{top:-8px; border-top:9px solid var(--red); filter:drop-shadow(0 0 4px var(--red-glow));}
+  .reel-marker::after{bottom:-8px; border-bottom:9px solid var(--red); filter:drop-shadow(0 0 4px var(--red-glow));}
+  .reel-fade{position:absolute; top:0; bottom:0; width:56px; z-index:3; pointer-events:none;}
+  .reel-fade-left{left:0; background:linear-gradient(90deg, rgba(6,5,7,0.95), transparent);}
+  .reel-fade-right{right:0; background:linear-gradient(270deg, rgba(6,5,7,0.95), transparent);}
+  .spin-btn{
+    margin-top:14px; width:100%; max-width:280px; border:none; border-radius:14px;
+    background:linear-gradient(135deg, var(--red), var(--red-2)); color:#fff;
+    font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700; padding:15px;
+    cursor:pointer; box-shadow:0 8px 24px rgba(255,33,64,0.35); transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .spin-btn:active{transform:scale(0.97);}
+  .spin-btn:disabled{background:var(--surface-2); color:var(--text-faint); box-shadow:none; cursor:default;}
+  .spin-note{margin-top:9px; font-size:12px; color:var(--text-faint); text-align:center;}
+
+  .result-overlay{
+    display:none; position:fixed; inset:0; background:rgba(3,3,5,0.8); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; z-index:60; padding:20px;
+  }
+  .result-overlay.show{display:flex;}
+  .result-card{
+    width:100%; max-width:320px; text-align:center; padding:30px 22px 24px; position:relative;
+    animation:popIn .35s cubic-bezier(.2,.9,.3,1.2) both; overflow:hidden;
+  }
+  .result-card::before{
+    content:''; position:absolute; inset:-60% -20% auto auto; width:220px; height:220px;
+    background:radial-gradient(circle, rgba(255,33,64,0.4), transparent 70%); pointer-events:none;
+  }
+  .result-spark{position:absolute; font-size:18px; animation:spark 1s ease-out forwards; pointer-events:none;}
+  .result-icon{font-size:40px; margin-bottom:10px;}
+  .result-label-top{font-size:12px; color:var(--text-faint); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:6px;}
+  .result-label{font-size:22px; font-weight:700; font-family:'Space Grotesk',sans-serif; margin-bottom:20px;
+    background:linear-gradient(90deg,#fff,var(--red)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .result-close-btn{
+    width:100%; border:none; border-radius:12px; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--text); font-weight:600; padding:13px; cursor:pointer; font-size:14px;
+  }
+
+  /* --- Промокод --- */
+  .promo-row{display:flex; gap:8px;}
+  .promo-input{
+    flex:1; background:var(--surface); border:1px solid var(--line); border-radius:13px;
+    padding:14px 15px; color:var(--text); font-family:'JetBrains Mono',monospace;
+    font-size:14px; letter-spacing:1px; text-transform:uppercase; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .promo-input:focus{outline:none; border-color:var(--line-red); box-shadow:0 0 0 3px rgba(255,33,64,0.15);}
+  .promo-input::placeholder{color:var(--text-faint); letter-spacing:0.5px;}
+  .promo-btn{
+    border:none; border-radius:13px; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--text); font-weight:600; padding:0 18px; cursor:pointer; font-size:14px; transition:background .15s ease;
+  }
+  .promo-btn:active{background:var(--red-soft);}
+  .promo-msg{margin-top:9px; font-size:13px;}
+  .promo-msg.ok{color:#fff;}
+  .promo-msg.ok::before{content:'✓ '; color:var(--red);}
+  .promo-msg.err{color:#FF6B7D;}
+
+  /* --- Тарифы / период / корзина --- */
+  .period-grid{display:flex; flex-direction:column; gap:10px;}
+  .period-card{
+    background:linear-gradient(180deg, var(--surface-2), var(--surface));
+    border:1px solid var(--line); border-radius:16px;
+    padding:17px; display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; width:100%; color:var(--text); font-family:inherit; text-align:left;
+    transition:transform .15s ease, border-color .15s ease;
+  }
+  .period-card:active{transform:scale(0.98); border-color:var(--line-red);}
+  .period-name{font-size:15px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .period-sub{font-size:12px; color:var(--text-faint); margin-top:3px;}
+  .period-arrow{font-size:20px; color:var(--red); flex-shrink:0; margin-left:10px;}
+
+  .back-btn{
+    display:inline-flex; align-items:center; gap:6px; background:none; border:none;
+    color:var(--text-dim); font-size:13px; padding:4px 0 12px; cursor:pointer; font-family:inherit;
+  }
+  .back-btn:active{color:var(--red);}
+
+  .tariff-grid{display:flex; flex-direction:column; gap:10px;}
+  .tariff-card{
+    background:linear-gradient(180deg, var(--surface-2), var(--surface));
+    border:1px solid var(--line); border-radius:16px;
+    padding:15px 16px; display:flex; align-items:center; justify-content:space-between;
+    transition:border-color .15s ease;
+  }
+  .tariff-card.has-badge{border-color:var(--line-red);}
+  .tariff-name{font-size:14.5px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .tariff-badge{
+    display:inline-block; font-size:10px; font-weight:700; color:#fff;
+    background:linear-gradient(135deg, var(--red), var(--red-2)); padding:3px 8px; border-radius:999px;
+    margin-left:6px; vertical-align:middle; box-shadow:0 0 10px rgba(255,33,64,0.4);
+  }
+  .tariff-meta{font-size:12px; color:var(--text-faint); margin-top:3px;}
+  .tariff-old-price{font-size:11px; color:var(--text-faint); text-decoration:line-through; margin-right:6px;}
+  .tariff-price{font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700; color:#fff;}
+  .buy-btn{
+    margin-left:12px; border:none; border-radius:11px; background:linear-gradient(135deg, var(--red), var(--red-2));
+    color:#fff; font-weight:700; font-size:13px; padding:10px 15px; cursor:pointer; white-space:nowrap;
+    box-shadow:0 4px 14px rgba(255,33,64,0.3); transition:transform .15s ease;
+  }
+  .buy-btn:active{transform:scale(0.95);}
+  .buy-btn:disabled{opacity:0.5; box-shadow:none;}
+
+  .upsell-title{font-size:17px; font-weight:700; margin-bottom:9px; font-family:'Space Grotesk',sans-serif; color:#fff;}
+  .upsell-text{font-size:13.5px; color:var(--text-dim); line-height:1.55; margin-bottom:18px;}
+  .upsell-btn-yes{
+    width:100%; border:none; border-radius:12px; background:linear-gradient(135deg, var(--red), var(--red-2)); color:#fff;
+    font-weight:700; padding:14px; cursor:pointer; font-family:'Space Grotesk',sans-serif; margin-bottom:10px;
+    box-shadow:0 8px 20px rgba(255,33,64,0.35);
+  }
+  .upsell-btn-no{
+    width:100%; border:none; border-radius:12px; background:var(--surface-2); border:1px solid var(--line);
+    color:var(--text-dim); font-weight:600; padding:14px; cursor:pointer;
+  }
+
+  .cart-summary{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:14px;
+    padding:13px 15px; margin-bottom:15px; position:relative; overflow:hidden;
+  }
+  .cart-title{font-size:14.5px; font-weight:700; font-family:'Space Grotesk',sans-serif;}
+  .cart-meta{font-size:12px; color:var(--text-faint); margin-top:3px;}
+  .cart-price{font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; color:#fff; margin-top:7px;}
+
+  .pay-modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(3,3,5,0.78); backdrop-filter:blur(4px);
+    align-items:flex-end; justify-content:center; z-index:55;
+  }
+  .pay-modal-overlay.show{display:flex;}
+  .pay-modal{
+    width:100%; max-width:480px; background:linear-gradient(180deg, #17151A, #0F0E11);
+    border:1px solid var(--line); border-top-color:var(--line-red);
+    border-radius:22px 22px 0 0; padding:18px 16px 26px;
+    animation:riseIn .3s ease both;
+  }
+  .pay-modal-title{font-size:14px; font-weight:700; margin-bottom:10px; font-family:'Space Grotesk',sans-serif;}
+  .pay-method-btn{
+    width:100%; display:flex; align-items:center; gap:12px; text-align:left;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:14px;
+    padding:14px; margin-bottom:10px; cursor:pointer; color:var(--text); transition:border-color .15s ease, transform .1s ease;
+  }
+  .pay-method-btn:active{transform:scale(0.98); border-color:var(--line-red);}
+  .pay-method-btn:disabled{opacity:0.4; cursor:default;}
+  .pay-method-icon{font-size:21px; width:28px; text-align:center; flex-shrink:0;}
+  .pay-method-name{font-size:14px; font-weight:600;}
+  .pay-method-sub{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+  .pay-modal-cancel{
+    width:100%; border:none; background:transparent; color:var(--text-faint);
+    font-size:13px; padding:11px; cursor:pointer;
+  }
+
+  .toast{
+    position:fixed; left:16px; right:16px; bottom:16px; background:var(--surface-solid);
+    border:1px solid var(--line-red); border-radius:14px; padding:13px 15px; font-size:13px;
+    color:var(--text); opacity:0; transform:translateY(10px); transition:all .25s ease;
+    pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,0.4); z-index:70;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+  textarea{
+    width:100%; background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    color:var(--text); padding:14px 15px; font-size:14px; font-family:inherit; resize:vertical;
+    min-height:92px; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  textarea:focus{outline:none; border-color:var(--line-red); box-shadow:0 0 0 3px rgba(255,33,64,0.15);}
+  .char-count{font-size:11px; color:var(--text-faint); text-align:right; margin-top:5px;}
+  .feedback-btn{
+    margin-top:11px; width:100%; border:none; border-radius:14px;
+    background:linear-gradient(135deg, var(--red), var(--red-2)); color:#fff;
+    font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700; padding:14px; cursor:pointer;
+    box-shadow:0 8px 20px rgba(255,33,64,0.3); transition:transform .15s ease;
+  }
+  .feedback-btn:active{transform:scale(0.98);}
+  .feedback-btn:disabled{opacity:0.5; box-shadow:none;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <img class="brand-icon" src="ghost-icon.webp" alt="" width="30" height="30">
+    <div class="brand-name">GHOST TRAFИК</div>
+  </div>
+  <div class="uid-pill mono" id="uid"></div>
+</div>
+
+<div class="status-card glass-card">
+  <div class="ring">
+    <svg viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FF2140"/>
+          <stop offset="100%" stop-color="#FF7A55"/>
+        </linearGradient>
+      </defs>
+      <circle class="ring-bg" cx="32" cy="32" r="27"></circle>
+      <circle class="ring-fg" id="ring-fg" cx="32" cy="32" r="27" stroke-dasharray="169.6" stroke-dashoffset="169.6"></circle>
+    </svg>
+    <div class="ring-label mono" id="ring-label">–</div>
+  </div>
+  <div class="status-info">
+    <div class="status-title">Сигнал подписки</div>
+    <div class="status-value" id="days-left-text">загрузка…</div>
+    <div class="status-pills">
+      <div class="pill red"><span class="mono" id="balance-text">0 ₽</span> баланс</div>
+      <div class="pill">📱 <span class="mono" id="device-limit-text">–</span></div>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="section-head">
+    <div class="section-title">Продлить подписку</div>
+    <div class="section-sub" id="sub-section-sub">выбери период</div>
+  </div>
+
+  <!-- Шаг 1: выбор периода -->
+  <div class="period-grid" id="step-period">
+    <button class="period-card" data-group="1m">
+      <div>
+        <div class="period-name">📅 1 месяц</div>
+        <div class="period-sub">оплата помесячно</div>
+      </div>
+      <div class="period-arrow">›</div>
+    </button>
+    <button class="period-card" data-group="6m">
+      <div>
+        <div class="period-name">🎁 6 месяцев</div>
+        <div class="period-sub">выгоднее, чем платить каждый месяц</div>
+      </div>
+      <div class="period-arrow">›</div>
+    </button>
+  </div>
+
+  <!-- Шаг 2: тарифы выбранного периода -->
+  <div id="step-tariffs" style="display:none;">
+    <button class="back-btn" id="tariffs-back-btn">← Назад</button>
+    <div class="tariff-grid" id="tariff-grid"></div>
+  </div>
+</section>
+
+<!-- Апсейл: показывается перед корзиной при оплате тарифа на 1 месяц -->
+<div class="pay-modal-overlay" id="upsell-overlay">
+  <div class="pay-modal">
+    <div class="upsell-title" id="upsell-title"></div>
+    <div class="upsell-text" id="upsell-text"></div>
+    <button class="upsell-btn-yes" id="upsell-yes-btn">👍 Да, сэкономить</button>
+    <button class="upsell-btn-no" id="upsell-no-btn">❌ Нет, оплатить 1 месяц</button>
+  </div>
+</div>
+
+<!-- Шаг 3: корзина — выбранный тариф + способ оплаты -->
+<div class="pay-modal-overlay" id="pay-modal-overlay">
+  <div class="pay-modal">
+    <button class="back-btn" id="cart-back-btn">← Назад</button>
+    <div class="cart-summary">
+      <div class="cart-title" id="cart-title"></div>
+      <div class="cart-meta" id="cart-meta"></div>
+      <div class="cart-price" id="cart-price"></div>
+    </div>
+    <div class="pay-modal-title">Способ оплаты</div>
+    <button class="pay-method-btn" id="pay-method-card">
+      <div class="pay-method-icon">💳</div>
+      <div>
+        <div class="pay-method-name">Карта, СБП</div>
+        <div class="pay-method-sub" id="pay-method-card-sub"></div>
+      </div>
+    </button>
+    <button class="pay-method-btn" id="pay-method-crypto">
+      <div class="pay-method-icon">🪙</div>
+      <div>
+        <div class="pay-method-name">Криптовалюта</div>
+        <div class="pay-method-sub" id="pay-method-crypto-sub"></div>
+      </div>
+    </button>
+    <button class="pay-method-btn" id="pay-method-stars">
+      <div class="pay-method-icon">⭐</div>
+      <div>
+        <div class="pay-method-name">Telegram Stars</div>
+        <div class="pay-method-sub" id="pay-method-stars-sub"></div>
+      </div>
+    </button>
+    <button class="pay-modal-cancel" id="pay-modal-cancel">Отмена</button>
+  </div>
+</div>
+
+<section>
+  <div class="section-head">
+    <div class="section-title">Промокод</div>
+  </div>
+  <div class="promo-row">
+    <input class="promo-input" id="promo-input" placeholder="GHOST2026" maxlength="32">
+    <button class="promo-btn" id="promo-btn">Активировать</button>
+  </div>
+  <div class="promo-msg" id="promo-msg"></div>
+</section>
+
+<section>
+  <div class="section-head">
+    <div class="section-title">Ежедневная рулетка</div>
+    <div class="section-sub">1 прокрут / сутки</div>
+  </div>
+  <div class="reel-card glass-card">
+    <div class="reel-viewport" id="reel-viewport">
+      <div class="reel-track" id="reel-track"></div>
+      <div class="reel-marker"></div>
+      <div class="reel-fade reel-fade-left"></div>
+      <div class="reel-fade reel-fade-right"></div>
+    </div>
+    <button class="spin-btn" id="spin-btn">Крутить</button>
+    <div class="spin-note" id="spin-note"></div>
+  </div>
+</section>
+
+<div class="result-overlay" id="result-overlay">
+  <div class="pay-modal result-card glass-card">
+    <div class="result-spark" style="top:10%; left:12%;">✦</div>
+    <div class="result-spark" style="top:16%; right:14%; animation-delay:.1s;">✦</div>
+    <div class="result-icon" id="result-icon">🎉</div>
+    <div class="result-label-top">Тебе выпало</div>
+    <div class="result-label" id="result-label"></div>
+    <button class="result-close-btn" id="result-close-btn">Забрать</button>
+  </div>
+</div>
+
+<section>
+  <div class="section-head">
+    <div class="section-title">Обратная связь</div>
+    <div class="section-sub">уйдёт администраторам</div>
+  </div>
+  <textarea id="feedback-text" maxlength="2000" placeholder="Напиши нам, если что-то не работает или есть предложение..."></textarea>
+  <div class="char-count"><span id="feedback-count">0</span>/2000</div>
+  <button class="feedback-btn" id="feedback-btn">Отправить</button>
+  <div class="promo-msg" id="feedback-msg"></div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ВАЖНО: укажи здесь тот же адрес, что и config.API_BASE_URL на сервере.
+const API_BASE = "https://example.com/api";
+
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+const initData = tg?.initData || "";
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2600);
+}
+
+async function api(path, options={}){
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Init-Data': initData,
+      ...(options.headers || {}),
+    },
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok){
+    throw new Error(data.detail || 'Ошибка запроса');
+  }
+  return data;
+}
+
+// Порядок и цвета должны совпадать с config.ROULETTE_PRIZES на сервере.
+// Это ТОЛЬКО отображение (сегменты колеса) — сам приз и его шанс выпадения
+// определяются исключительно на сервере в /api/roulette/spin, фронтенд лишь
+// находит нужный сегмент по id, который вернул сервер.
+const PRIZES = [
+  {id:"money_100", label:"100₽", icon:"💰"},
+  {id:"days_15",   label:"15д",  icon:"⏳"},
+  {id:"money_50",  label:"50₽",  icon:"💰"},
+  {id:"days_10",   label:"10д",  icon:"⏳"},
+  {id:"money_20",  label:"20₽",  icon:"💰"},
+  {id:"days_5",    label:"5д",   icon:"⏳"},
+  {id:"money_10",  label:"10₽",  icon:"💰"},
+  {id:"days_3",    label:"3д",   icon:"⏳"},
+  {id:"money_5",   label:"5₽",   icon:"💰"},
+];
+
+// Горизонтальная лента: прокручивается по X и останавливается так, чтобы
+// приз, который вернул сервер, оказался ровно под центральным маркером.
+const REEL_ITEM_W = 78;
+const REEL_GAP = 10;
+const REEL_STRIDE = REEL_ITEM_W + REEL_GAP;
+const REEL_LOOPS = 6;
+const REEL_TARGET_LOOP = 4; // на каком проходе ленты останавливаемся (даёт длинный красивый прогон)
+
+function buildReel(){
+  const track = document.getElementById('reel-track');
+  let html = '';
+  for(let L=0; L<REEL_LOOPS; L++){
+    PRIZES.forEach((p,i)=>{
+      const tint = i % 2 === 0 ? 'reel-item-red' : 'reel-item-dark';
+      html += `<div class="reel-item ${tint}"><div class="reel-item-icon">${p.icon}</div><div class="reel-item-label mono">${p.label}</div></div>`;
+    });
+  }
+  track.innerHTML = html;
+}
+buildReel();
+
+
+let spinning = false;
+
+async function loadMe(){
+  try{
+    const me = await api('/me');
+    document.getElementById('uid').textContent = '#' + me.user_id;
+    document.getElementById('days-left-text').textContent = me.days_left + ' дн. осталось';
+    document.getElementById('balance-text').textContent = me.balance_rub + ' ₽';
+    document.getElementById('device-limit-text').textContent = me.device_limit + ' устр.';
+
+    const pct = Math.max(0, Math.min(1, me.days_left/30));
+    const circ = 169.6;
+    document.getElementById('ring-fg').style.strokeDashoffset = circ - circ*pct;
+    document.getElementById('ring-label').textContent = me.days_left;
+
+    const spinBtn = document.getElementById('spin-btn');
+    if(!me.can_spin_roulette){
+      spinBtn.disabled = true;
+      spinBtn.textContent = 'Уже крутили сегодня';
+      document.getElementById('spin-note').textContent = 'Новый прокрут доступен завтра';
+    } else {
+      spinBtn.disabled = false;
+      spinBtn.textContent = 'Крутить';
+      document.getElementById('spin-note').textContent = '';
+    }
+
+    renderTariffs(me.tariffs);
+    window.BOT_USERNAME = me.bot_username || '';
+  } catch(e){
+    toast(e.message);
+  }
+}
+
+let allTariffs = [];
+let currentTariffsById = {};
+
+function renderTariffs(tariffs){
+  allTariffs = tariffs || [];
+  currentTariffsById = {};
+  allTariffs.forEach(t=>{ currentTariffsById[t.id] = t; });
+}
+
+// Шаг 1: выбор периода (1 месяц / 6 месяцев)
+document.querySelectorAll('#step-period .period-card').forEach(btn=>{
+  btn.addEventListener('click', ()=>showTariffsForGroup(btn.dataset.group));
+});
+
+function showTariffsForGroup(group){
+  const list = allTariffs.filter(t=>t.group === group);
+  const grid = document.getElementById('tariff-grid');
+  grid.innerHTML = '';
+
+  if(!list.length){
+    // Такое возможно, если на сервере ещё не обновлён config.py (там должны
+    // быть поля group/base у каждого тарифа) — тарифы просто не с чем сопоставить.
+    grid.innerHTML = '<div style="font-size:13px; color:var(--text-faint); padding:14px 2px;">Тарифы для этого периода временно недоступны — попробуй позже.</div>';
+    document.getElementById('step-period').style.display = 'none';
+    document.getElementById('step-tariffs').style.display = 'block';
+    document.getElementById('sub-section-sub').textContent = group === '1m' ? '1 месяц' : '6 месяцев';
+    return;
+  }
+
+  list.forEach(t=>{
+    const traffic = t.traffic_gb ? `${t.traffic_gb} ГБ` : '♾️ безлимит';
+    const devices = t.device_limit === 1 ? '1 устр.' : `до ${t.device_limit} устр.`;
+    const badge = t.badge ? `<span class="tariff-badge">${t.emoji ? t.emoji + ' ' : ''}${t.badge}</span>` : (t.emoji ? `<span class="tariff-badge">${t.emoji}</span>` : '');
+    const oldPrice = t.old_price_rub ? `<span class="tariff-old-price">${t.old_price_rub} ₽</span>` : '';
+    const card = document.createElement('div');
+    card.className = 'tariff-card glass-card' + (badge ? ' has-badge' : '');
+    card.innerHTML = `
+      <div>
+        <div class="tariff-name">${t.title}${badge}</div>
+        <div class="tariff-meta">${devices} · ${traffic}</div>
+      </div>
+      <div style="display:flex; align-items:center;">
+        <div>${oldPrice}<span class="tariff-price">${t.price_rub} ₽</span></div>
+        <button class="buy-btn" data-id="${t.id}">Оплатить</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll('.buy-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>onTariffChosen(btn.dataset.id));
+  });
+
+  document.getElementById('step-period').style.display = 'none';
+  document.getElementById('step-tariffs').style.display = 'block';
+  document.getElementById('sub-section-sub').textContent = group === '1m' ? '1 месяц' : '6 месяцев';
+}
+
+document.getElementById('tariffs-back-btn').addEventListener('click', ()=>{
+  document.getElementById('step-tariffs').style.display = 'none';
+  document.getElementById('step-period').style.display = 'flex';
+  document.getElementById('sub-section-sub').textContent = 'выбери период';
+});
+
+// Апсейл: перед оплатой тарифа на 1 месяц предлагаем взять :PACK на 6 месяцев.
+// Выгода = (цена_1_мес * 6) - цена_6_мес, считается по общей линейке ("base").
+function onTariffChosen(tariffId){
+  const t = currentTariffsById[tariffId];
+  if(!t) return;
+  if(t.group === '1m'){
+    const packTariff = allTariffs.find(p=>p.group === '6m' && p.base === t.base);
+    if(packTariff){
+      const savings = t.price_rub * 6 - packTariff.price_rub;
+      document.getElementById('upsell-title').textContent = `Экономия ${savings} ₽!`;
+      document.getElementById('upsell-text').textContent =
+        `Возьмите ${packTariff.title} на 6 месяцев всего за ${packTariff.price_rub} ₽`;
+      document.getElementById('upsell-overlay').dataset.packId = packTariff.id;
+      document.getElementById('upsell-overlay').dataset.originalId = tariffId;
+      document.getElementById('upsell-overlay').classList.add('show');
+      return;
+    }
+  }
+  openCart(tariffId);
+}
+
+document.getElementById('upsell-yes-btn').addEventListener('click', ()=>{
+  const packId = document.getElementById('upsell-overlay').dataset.packId;
+  document.getElementById('upsell-overlay').classList.remove('show');
+  openCart(packId);
+});
+document.getElementById('upsell-no-btn').addEventListener('click', ()=>{
+  const originalId = document.getElementById('upsell-overlay').dataset.originalId;
+  document.getElementById('upsell-overlay').classList.remove('show');
+  openCart(originalId);
+});
+
+// Шаг 3: корзина — выбранный тариф + способ оплаты. Счёт/ссылка ещё НЕ
+// создаются — это происходит только после явного выбора платёжки (см.
+// payWith ниже), чтобы не плодить пустые счета в платёжных системах.
+function openCart(tariffId){
+  const t = currentTariffsById[tariffId];
+  if(!t) return;
+  const traffic = t.traffic_gb ? `${t.traffic_gb} ГБ/мес` : '♾️ безлимит';
+  const devices = t.device_limit === 1 ? '1 устройство' : `до ${t.device_limit} устройств`;
+  document.getElementById('cart-title').textContent = t.title;
+  document.getElementById('cart-meta').textContent = `${t.days} дней · ${devices} · ${traffic}`;
+  document.getElementById('cart-price').textContent = `${t.price_rub} ₽`;
+
+  document.getElementById('pay-method-card-sub').textContent = `${t.price_rub} ₽`;
+  document.getElementById('pay-method-crypto-sub').textContent = `≈ ${t.price_rub} ₽ в криптовалюте`;
+  const starsBtn = document.getElementById('pay-method-stars');
+  if(t.price_stars){
+    starsBtn.disabled = false;
+    document.getElementById('pay-method-stars-sub').textContent = `${t.price_stars} ⭐`;
+  } else {
+    starsBtn.disabled = true;
+    document.getElementById('pay-method-stars-sub').textContent = 'недоступно для этого тарифа';
+  }
+  document.getElementById('pay-modal-overlay').dataset.tariffId = tariffId;
+  document.getElementById('pay-modal-overlay').classList.add('show');
+}
+
+function closePayModal(){
+  document.getElementById('pay-modal-overlay').classList.remove('show');
+}
+
+document.getElementById('pay-modal-cancel').addEventListener('click', closePayModal);
+document.getElementById('cart-back-btn').addEventListener('click', closePayModal);
+document.getElementById('pay-modal-overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'pay-modal-overlay') closePayModal();
+});
+document.getElementById('upsell-overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'upsell-overlay') document.getElementById('upsell-overlay').classList.remove('show');
+});
+
+document.getElementById('pay-method-card').addEventListener('click', ()=>{
+  payWith('/payment/create', document.getElementById('pay-modal-overlay').dataset.tariffId, 'card');
+});
+document.getElementById('pay-method-crypto').addEventListener('click', ()=>{
+  payWith('/payment/crypto/create', document.getElementById('pay-modal-overlay').dataset.tariffId, 'crypto');
+});
+document.getElementById('pay-method-stars').addEventListener('click', ()=>{
+  payWith('/payment/stars/create', document.getElementById('pay-modal-overlay').dataset.tariffId, 'stars');
+});
+
+async function payWith(endpoint, tariffId, method){
+  if(!tariffId) return;
+  const buttons = document.querySelectorAll('.pay-method-btn');
+  buttons.forEach(b=>b.disabled = true);
+  try{
+    const res = await api(endpoint, {method:'POST', body: JSON.stringify({tariff_id: tariffId})});
+    closePayModal();
+    if(method === 'stars'){
+      // Счёт отправлен сообщением в чат с ботом через sendInvoice — открываем чат.
+      toast('Счёт отправлен в чат с ботом — открой его, чтобы оплатить');
+      if(tg?.openTelegramLink && window.BOT_USERNAME){
+        tg.openTelegramLink(`https://t.me/${window.BOT_USERNAME}`);
+      }
+    } else if(res.confirmation_url){
+      if(tg?.openLink){
+        tg.openLink(res.confirmation_url);
+      } else {
+        window.open(res.confirmation_url, '_blank');
+      }
+    }
+  } catch(e){
+    toast(e.message);
+  } finally {
+    const starsStillAvailable = currentTariffsById[tariffId]?.price_stars;
+    document.getElementById('pay-method-card').disabled = false;
+    document.getElementById('pay-method-crypto').disabled = false;
+    document.getElementById('pay-method-stars').disabled = !starsStillAvailable;
+  }
+}
+
+document.getElementById('spin-btn').addEventListener('click', async ()=>{
+  if(spinning) return;
+  spinning = true;
+  const btn = document.getElementById('spin-btn');
+  btn.disabled = true;
+  try{
+    const res = await api('/roulette/spin', {method:'POST'});
+    const idx = PRIZES.findIndex(p=>p.id === res.prize.id);
+    const track = document.getElementById('reel-track');
+    const viewport = document.getElementById('reel-viewport');
+
+    const targetPos = REEL_TARGET_LOOP * PRIZES.length + idx;
+    const itemCenter = targetPos * REEL_STRIDE + REEL_ITEM_W/2;
+    const viewportW = viewport.clientWidth;
+    const targetX = viewportW/2 - itemCenter;
+
+    // Сброс без анимации, затем плавный прогон до цели — так лента всегда
+    // проезжает полный, эффектный путь, а не короткий скачок от прошлой позиции.
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(0px)';
+    void track.offsetWidth;
+    track.style.transition = 'transform 4.4s cubic-bezier(.08,.82,.13,1)';
+    requestAnimationFrame(()=>{
+      track.style.transform = `translateX(${targetX}px)`;
+    });
+
+    setTimeout(()=>{
+      const item = track.children[targetPos];
+      item?.classList.add('reel-item-win');
+
+      document.getElementById('balance-text').textContent = res.balance_rub + ' ₽';
+      document.getElementById('days-left-text').textContent = res.days_left + ' дн. осталось';
+      document.getElementById('ring-label').textContent = res.days_left;
+
+      document.getElementById('result-icon').textContent = PRIZES[idx]?.icon || '🎉';
+      document.getElementById('result-label').textContent = res.prize.label;
+      document.getElementById('result-overlay').classList.add('show');
+
+      btn.textContent = 'Уже крутили сегодня';
+      document.getElementById('spin-note').textContent = 'Новый прокрут доступен завтра';
+      spinning = false;
+    }, 4500);
+  } catch(e){
+    toast(e.message);
+    btn.disabled = false;
+    spinning = false;
+  }
+});
+
+document.getElementById('result-close-btn').addEventListener('click', ()=>{
+  document.getElementById('result-overlay').classList.remove('show');
+  document.querySelectorAll('.reel-item.reel-item-win').forEach(el=>el.classList.remove('reel-item-win'));
+});
+
+document.getElementById('promo-btn').addEventListener('click', async ()=>{
+  const input = document.getElementById('promo-input');
+  const msg = document.getElementById('promo-msg');
+  const code = input.value.trim();
+  if(!code) return;
+  msg.className = 'promo-msg';
+  msg.textContent = '';
+  try{
+    const res = await api('/promo/redeem', {method:'POST', body: JSON.stringify({code})});
+    msg.classList.add('ok');
+    msg.textContent = 'Промокод активирован!';
+    input.value = '';
+    loadMe();
+  } catch(e){
+    msg.classList.add('err');
+    msg.textContent = e.message;
+  }
+});
+
+document.getElementById('feedback-text').addEventListener('input', e=>{
+  document.getElementById('feedback-count').textContent = e.target.value.length;
+});
+
+document.getElementById('feedback-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('feedback-btn');
+  const textEl = document.getElementById('feedback-text');
+  const msg = document.getElementById('feedback-msg');
+  const text = textEl.value.trim();
+  msg.className = 'promo-msg';
+  msg.textContent = '';
+  if(!text){ msg.classList.add('err'); msg.textContent = 'Напиши сообщение.'; return; }
+
+  btn.disabled = true;
+  try{
+    await api('/feedback', {method:'POST', body: JSON.stringify({text})});
+    msg.classList.add('ok');
+    msg.textContent = 'Спасибо! Сообщение отправлено администраторам.';
+    textEl.value = '';
+    document.getElementById('feedback-count').textContent = '0';
+  } catch(e){
+    msg.classList.add('err');
+    msg.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+loadMe();
+</script>
+</body>
+</html>
