@@ -105,6 +105,27 @@
     transition:border-color .15s ease, box-shadow .15s ease;
   }
   .char-count{font-size:11px; color:var(--text-faint); text-align:right; margin-top:4px;}
+
+  .btn.danger{background:linear-gradient(135deg, #6b6f7a, #33363d); box-shadow:0 8px 22px rgba(0,0,0,0.35);}
+  .user-info-box{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; font-size:13px; line-height:1.7; color:var(--text-dim); margin-bottom:4px;
+  }
+  .user-info-box b{color:#fff;}
+  .fb-item{padding:13px 0; border-bottom:1px solid var(--line);}
+  .fb-item:last-child{border-bottom:none;}
+  .fb-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;}
+  .fb-user{font-size:13px; font-weight:700; color:#fff;}
+  .fb-date{font-size:11px; color:var(--text-faint);}
+  .fb-text{font-size:13.5px; color:var(--text); white-space:pre-wrap; margin-bottom:8px;}
+  .fb-reply-box{
+    background:rgba(255,33,64,0.07); border:1px solid var(--line-red); border-radius:10px;
+    padding:9px 11px; font-size:13px; color:#fff; margin-top:6px; white-space:pre-wrap;
+  }
+  .fb-reply-box .fb-reply-label{font-size:10.5px; color:#ff8a97; font-weight:700; margin-bottom:3px; text-transform:uppercase;}
+  .fb-reply-form textarea{min-height:60px; font-size:13px;}
+  .fb-reply-form{margin-top:6px;}
+  .fb-reply-form .btn{margin-top:8px; padding:9px;}
 </style>
 </head>
 <body>
@@ -177,6 +198,50 @@
 <div class="card">
   <label style="margin-top:0;">Все промокоды</label>
   <div id="list"></div>
+</div>
+
+<h1>Управление пользователем · GHOST TRAFИК</h1>
+
+<div class="card">
+  <label style="margin-top:0;">Telegram ID пользователя</label>
+  <input type="number" id="user-lookup-id" placeholder="123456789">
+  <button class="btn secondary" id="user-lookup-btn">Найти</button>
+  <div class="msg" id="user-lookup-msg"></div>
+
+  <div id="user-panel" style="display:none; margin-top:18px;">
+    <div id="user-info" class="user-info-box"></div>
+
+    <button class="btn secondary" id="user-reset-roulette-btn">🎡 Сбросить лимит рулетки</button>
+    <div class="msg" id="user-roulette-msg"></div>
+
+    <label>Выдать подписку — тариф</label>
+    <select id="user-grant-tariff"><option value="">— указать дни вручную —</option></select>
+    <div id="user-grant-days-field">
+      <label>Количество дней</label>
+      <input type="number" id="user-grant-days" min="1" placeholder="30">
+    </div>
+    <button class="btn" id="user-grant-btn">🎁 Выдать подписку</button>
+    <div class="msg" id="user-grant-msg"></div>
+
+    <button class="btn secondary" id="user-reset-sub-btn" style="margin-top:22px;">♻️ Обнулить подписку</button>
+    <div class="msg" id="user-reset-msg"></div>
+
+    <button class="btn danger" id="user-block-btn" style="margin-top:22px;">⛔ Заблокировать</button>
+    <button class="btn secondary" id="user-unblock-btn" style="margin-top:22px; display:none;">✅ Разблокировать</button>
+    <div class="msg" id="user-block-msg"></div>
+  </div>
+</div>
+
+<h1>Обратная связь · GHOST TRAFИК</h1>
+
+<div class="card">
+  <label style="margin-top:0; display:flex; align-items:center; justify-content:space-between;">
+    <span>Обращения пользователей</span>
+    <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-dim); font-weight:400;">
+      <input type="checkbox" id="feedback-only-unanswered" style="width:auto; margin:0;"> только без ответа
+    </span>
+  </label>
+  <div id="feedback-list"></div>
 </div>
 
 <script>
@@ -304,8 +369,14 @@ async function renderList(){
   const listEl = document.getElementById('list');
   try{
     const data = await api('/admin/promocodes');
+    window.ALL_TARIFFS = data.tariffs;
     const tariffSelect = document.getElementById('tariff_id');
     tariffSelect.innerHTML = data.tariffs.map(t=>`<option value="${t.id}">${t.title} (${t.days} дн.)</option>`).join('');
+    const grantTariffSelect = document.getElementById('user-grant-tariff');
+    if(grantTariffSelect){
+      grantTariffSelect.innerHTML = '<option value="">— указать дни вручную —</option>' +
+        data.tariffs.map(t=>`<option value="${t.id}">${t.title} (${t.days} дн.)</option>`).join('');
+    }
 
     if(!data.promocodes.length){
       listEl.innerHTML = '<div style="font-size:13px; color:var(--text-faint);">Пока нет ни одного промокода.</div>';
@@ -376,8 +447,192 @@ document.getElementById('create-btn').addEventListener('click', async ()=>{
   }
 });
 
+/* ========================= Управление пользователем ========================= */
+
+document.getElementById('user-grant-tariff').addEventListener('change', e=>{
+  document.getElementById('user-grant-days-field').style.display = e.target.value ? 'none' : 'block';
+});
+
+function fmtUserInfo(u){
+  const tariffLabel = u.current_tariff_title || 'нет (пробный/бонусные дни)';
+  const statusLabel = u.is_blocked ? '⛔ заблокирован' : '✅ активен';
+  return `
+    <b>#${u.user_id}</b> ${u.username ? '@'+u.username : '(без юзернейма)'}<br>
+    Осталось дней подписки: <b>${u.days_left}</b> · Тариф: ${tariffLabel}<br>
+    Баланс: ${u.balance_rub} ₽ · Лимит устройств: ${u.device_limit}<br>
+    Статус: ${statusLabel}
+  `;
+}
+
+async function refreshUserPanel(userId){
+  const u = await api(`/admin/user/${userId}`);
+  document.getElementById('user-panel').dataset.userId = userId;
+  document.getElementById('user-panel').style.display = 'block';
+  document.getElementById('user-info').innerHTML = fmtUserInfo(u);
+  document.getElementById('user-block-btn').style.display = u.is_blocked ? 'none' : 'block';
+  document.getElementById('user-unblock-btn').style.display = u.is_blocked ? 'block' : 'none';
+  return u;
+}
+
+document.getElementById('user-lookup-btn').addEventListener('click', async ()=>{
+  const idInput = document.getElementById('user-lookup-id');
+  const msg = document.getElementById('user-lookup-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  const id = parseInt(idInput.value, 10);
+  if(!id){ msg.classList.add('err'); msg.textContent = 'Введи корректный Telegram ID.'; return; }
+  try{
+    await refreshUserPanel(id);
+  } catch(e){
+    document.getElementById('user-panel').style.display = 'none';
+    msg.classList.add('err'); msg.textContent = e.message;
+  }
+});
+
+function currentPanelUserId(){
+  return parseInt(document.getElementById('user-panel').dataset.userId, 10);
+}
+
+document.getElementById('user-reset-roulette-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('user-reset-roulette-btn');
+  const msg = document.getElementById('user-roulette-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  btn.disabled = true;
+  try{
+    await api(`/admin/user/${currentPanelUserId()}/reset-roulette`, {method:'POST'});
+    msg.classList.add('ok'); msg.textContent = 'Лимит сброшен, пользователь уведомлён.';
+  } catch(e){
+    msg.classList.add('err'); msg.textContent = e.message;
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('user-grant-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('user-grant-btn');
+  const msg = document.getElementById('user-grant-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  const tariffId = document.getElementById('user-grant-tariff').value;
+  const days = parseInt(document.getElementById('user-grant-days').value || '0', 10);
+  const body = {user_id: currentPanelUserId()};
+  if(tariffId){ body.tariff_id = tariffId; }
+  else if(days > 0){ body.days = days; }
+  else { msg.classList.add('err'); msg.textContent = 'Выбери тариф или укажи количество дней.'; return; }
+
+  btn.disabled = true;
+  try{
+    const res = await api('/admin/grant', {method:'POST', body: JSON.stringify(body)});
+    msg.classList.add('ok');
+    msg.textContent = `Начислено ${res.days_added} дн., осталось ${res.days_left} дн. Пользователь уведомлён.`;
+    await refreshUserPanel(currentPanelUserId());
+  } catch(e){
+    msg.classList.add('err'); msg.textContent = e.message;
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('user-reset-sub-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('user-reset-sub-btn');
+  const msg = document.getElementById('user-reset-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  if(!confirm('Обнулить подписку этого пользователя? Действие необратимо.')) return;
+  btn.disabled = true;
+  try{
+    await api(`/admin/user/${currentPanelUserId()}/reset-subscription`, {method:'POST'});
+    msg.classList.add('ok'); msg.textContent = 'Подписка обнулена, пользователь уведомлён.';
+    await refreshUserPanel(currentPanelUserId());
+  } catch(e){
+    msg.classList.add('err'); msg.textContent = e.message;
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('user-block-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('user-block-btn');
+  const msg = document.getElementById('user-block-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  if(!confirm('Заблокировать этого пользователя? Он потеряет доступ к боту и Mini App.')) return;
+  btn.disabled = true;
+  try{
+    await api(`/admin/user/${currentPanelUserId()}/block`, {method:'POST'});
+    msg.classList.add('ok'); msg.textContent = 'Пользователь заблокирован и уведомлён.';
+    await refreshUserPanel(currentPanelUserId());
+  } catch(e){
+    msg.classList.add('err'); msg.textContent = e.message;
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('user-unblock-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('user-unblock-btn');
+  const msg = document.getElementById('user-block-msg');
+  msg.className = 'msg'; msg.textContent = '';
+  btn.disabled = true;
+  try{
+    await api(`/admin/user/${currentPanelUserId()}/unblock`, {method:'POST'});
+    msg.classList.add('ok'); msg.textContent = 'Пользователь разблокирован и уведомлён.';
+    await refreshUserPanel(currentPanelUserId());
+  } catch(e){
+    msg.classList.add('err'); msg.textContent = e.message;
+  } finally { btn.disabled = false; }
+});
+
+/* ========================= Обратная связь ========================= */
+
+function fbItem(f){
+  const date = new Date(f.created_at).toLocaleString('ru-RU');
+  const who = f.username ? '@'+f.username : `id ${f.user_id}`;
+  const replyBlock = f.reply_text
+    ? `<div class="fb-reply-box"><div class="fb-reply-label">Ответ отправлен</div>${f.reply_text}</div>`
+    : `<div class="fb-reply-form" data-id="${f.id}">
+         <textarea placeholder="Текст ответа..." class="fb-reply-text"></textarea>
+         <button class="btn secondary fb-reply-btn">Ответить</button>
+         <div class="msg fb-reply-msg"></div>
+       </div>`;
+  return `
+    <div class="fb-item">
+      <div class="fb-head">
+        <span class="fb-user">${who}</span>
+        <span class="fb-date">${date}</span>
+      </div>
+      <div class="fb-text">${f.text}</div>
+      ${replyBlock}
+    </div>`;
+}
+
+async function renderFeedback(){
+  const el = document.getElementById('feedback-list');
+  const onlyUnanswered = document.getElementById('feedback-only-unanswered').checked;
+  try{
+    const data = await api(`/admin/feedback?only_unanswered=${onlyUnanswered}`);
+    if(!data.feedback.length){
+      el.innerHTML = '<div style="font-size:13px; color:var(--text-faint);">Обращений пока нет.</div>';
+      return;
+    }
+    el.innerHTML = data.feedback.map(fbItem).join('');
+    el.querySelectorAll('.fb-reply-form').forEach(form=>{
+      const id = form.dataset.id;
+      const textarea = form.querySelector('.fb-reply-text');
+      const btn = form.querySelector('.fb-reply-btn');
+      const msg = form.querySelector('.fb-reply-msg');
+      btn.addEventListener('click', async ()=>{
+        const text = textarea.value.trim();
+        msg.className = 'msg fb-reply-msg'; msg.textContent = '';
+        if(!text){ msg.classList.add('err'); msg.textContent = 'Введи текст ответа.'; return; }
+        btn.disabled = true;
+        try{
+          await api(`/admin/feedback/${id}/reply`, {method:'POST', body: JSON.stringify({text})});
+          renderFeedback();
+        } catch(e){
+          msg.classList.add('err'); msg.textContent = e.message;
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch(e){
+    el.innerHTML = `<div class="msg err">${e.message}</div>`;
+  }
+}
+
+document.getElementById('feedback-only-unanswered').addEventListener('change', renderFeedback);
+
 renderStats();
 renderList();
+renderFeedback();
 </script>
 </body>
 </html>
