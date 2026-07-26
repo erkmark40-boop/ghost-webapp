@@ -721,6 +721,11 @@ async function api(path, options={}){
     headers: {
       'Content-Type': 'application/json',
       'X-Telegram-Init-Data': initData,
+      // Нужно, пока бэкенд торчит за бесплатным ngrok: без этого
+      // заголовка ngrok показывает свою предупреждающую HTML-страницу
+      // вместо настоящего ответа API — а в ней нет CORS-заголовков,
+      // из-за чего браузер/WebView блокирует чтение ответа.
+      'ngrok-skip-browser-warning': 'true',
       ...(options.headers || {}),
     },
   });

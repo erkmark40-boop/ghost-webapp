@@ -190,7 +190,9 @@ async function api(path, options={}){
     ...options,
     headers: {
       'Content-Type': 'application/json', 
-      'X-Telegram-Init-Data': initData, 
+      'X-Telegram-Init-Data': initData,
+      // См. index.html — обходит предупреждающую страницу ngrok, пока
+      // бэкенд не на постоянном домене.
       'ngrok-skip-browser-warning': 'true',
       ...(options.headers || {})
     },
@@ -233,7 +235,7 @@ document.getElementById('export-users-btn').addEventListener('click', async ()=>
   msg.textContent = 'Формирование файла...';
   try{
     const res = await fetch(API_BASE + '/admin/users/export', {
-      headers: {'X-Telegram-Init-Data': initData},
+      headers: {'X-Telegram-Init-Data': initData, 'ngrok-skip-browser-warning': 'true'},
     });
     if(!res.ok){
       const data = await res.json().catch(()=>({}));
