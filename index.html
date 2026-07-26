@@ -751,49 +751,17 @@ document.querySelectorAll('.tab-btn').forEach(b=>{
 });
 document.getElementById('gift-btn').addEventListener('click', ()=>switchTab('referrals'));
 
-/* ========================= Звуки (генерируются на лету, без внешних файлов) ========================= */
-function wavFromSamples(int16arr, sampleRate){
-  const buf = new ArrayBuffer(44 + int16arr.length*2);
-  const view = new DataView(buf);
-  function ws(o,s){ for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); }
-  ws(0,'RIFF'); view.setUint32(4, 36+int16arr.length*2, true); ws(8,'WAVE');
-  ws(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
-  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate*2, true);
-  view.setUint16(32,2,true); view.setUint16(34,16,true);
-  ws(36,'data'); view.setUint32(40, int16arr.length*2, true);
-  for(let i=0;i<int16arr.length;i++) view.setInt16(44+i*2, int16arr[i], true);
-  let binary = ''; const bytes = new Uint8Array(buf);
-  for(let i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
-  return 'data:audio/wav;base64,' + btoa(binary);
+/* ========================= Тактильная отдача (вместо звука) ========================= */
+// Раньше здесь генерировались WAV-щелчки на лету и проигрывались через
+// Audio.play() при каждой границе барабана во время кручения — на слабых
+// WebView частые синхронные Audio.play() в цикле могли подвешивать поток
+// отрисовки и рвать CSS-анимацию кадрами. Заменили на HapticFeedback —
+// штатный тактильный отклик Telegram, ничего не весит и не блокирует рендер.
+function hapticTick(){
+  try{ tg?.HapticFeedback?.impactOccurred('light'); } catch(e){}
 }
-function makeClickWav(){
-  const sr = 8000, n = Math.floor(sr*0.03);
-  const buf = new Int16Array(n);
-  for(let i=0;i<n;i++){ const t=i/sr; const env=Math.exp(-t*140); buf[i]=Math.sin(2*Math.PI*1800*t)*env*32767*0.5; }
-  return wavFromSamples(buf, sr);
-}
-function makeChimeWav(){
-  const sr = 8000, n = Math.floor(sr*0.5);
-  const buf = new Int16Array(n);
-  for(let i=0;i<n;i++){
-    const t = i/sr;
-    const freq = t < 0.18 ? 660 : 990;
-    const lt = t < 0.18 ? t : t - 0.18;
-    const env = Math.exp(-lt*6);
-    buf[i] = Math.sin(2*Math.PI*freq*t)*env*32767*0.4;
-  }
-  return wavFromSamples(buf, sr);
-}
-const clickPool = Array.from({length:8}, ()=> new Audio(makeClickWav()));
-let clickPoolIdx = 0;
-function playClick(){
-  const a = clickPool[clickPoolIdx];
-  clickPoolIdx = (clickPoolIdx+1) % clickPool.length;
-  try{ a.currentTime = 0; a.play().catch(()=>{}); } catch(e){}
-}
-const winChime = new Audio(makeChimeWav());
-function playWinChime(){
-  try{ winChime.currentTime = 0; winChime.play().catch(()=>{}); } catch(e){}
+function hapticWin(){
+  try{ tg?.HapticFeedback?.notificationOccurred('success'); } catch(e){}
 }
 
 /* ========================= Bezier-easing (совпадает с CSS transition) ========================= */
@@ -858,7 +826,7 @@ function buildReel(){
 }
 buildReel();
 
-function scheduleReelClicks(durationMs, targetX, stride){
+function scheduleReelTicks(durationMs, targetX, stride){
   const steps = 200;
   let lastBoundary = 0;
   for(let i=1; i<=steps; i++){
@@ -868,9 +836,35 @@ function scheduleReelClicks(durationMs, targetX, stride){
     const boundary = Math.floor(Math.abs(pos) / stride);
     if(boundary > lastBoundary){
       lastBoundary = boundary;
-      setTimeout(playClick, p*durationMs);
+      setTimeout(hapticTick, p*durationMs);
     }
   }
+}
+
+// Покадровая анимация вместо CSS-transition: сами интерполируем позицию на
+// каждом кадре по той же bezier-кривой (SPIN_EASE) и в конце гарантированно
+// выставляем точное целевое значение. CSS-transition полагается на событие
+// transitionend, которое в некоторых Telegram WebView может не долететь
+// (сворачивание клавиатуры, потеря фокуса вкладки, троттлинг) — тогда
+// барабан визуально "замирает", не доехав до приза. rAF-цикл от этого не
+// зависит: снаружи мы просто ждём Promise, который резолвится строго после
+// финального кадра.
+function animateReel(track, fromX, toX, durationMs){
+  return new Promise(resolve=>{
+    const start = performance.now();
+    function frame(now){
+      const p = Math.min((now - start) / durationMs, 1);
+      const x = fromX + (toX - fromX) * SPIN_EASE(p);
+      track.style.transform = `translateX(${x}px)`;
+      if(p < 1){
+        requestAnimationFrame(frame);
+      } else {
+        track.style.transform = `translateX(${toX}px)`;
+        resolve();
+      }
+    }
+    requestAnimationFrame(frame);
+  });
 }
 
 let spinning = false;
@@ -894,28 +888,25 @@ document.getElementById('spin-btn').addEventListener('click', async ()=>{
     track.style.transition = 'none';
     track.style.transform = 'translateX(0px)';
     void track.offsetWidth;
-    track.style.transition = `transform ${SPIN_DURATION}ms cubic-bezier(0.1, 0.8, 0.2, 1)`;
-    requestAnimationFrame(()=>{ track.style.transform = `translateX(${targetX}px)`; });
 
-    scheduleReelClicks(SPIN_DURATION, targetX, REEL_STRIDE);
+    scheduleReelTicks(SPIN_DURATION, targetX, REEL_STRIDE);
+    await animateReel(track, 0, targetX, SPIN_DURATION);
 
-    setTimeout(()=>{
-      const item = track.children[targetPos];
-      item?.classList.add('reel-item-win');
+    const item = track.children[targetPos];
+    item?.classList.add('reel-item-win');
 
-      document.getElementById('balance-text').textContent = res.balance_rub + ' ₽';
-      renderExpiry(res.days_left, res.expires_at);
+    document.getElementById('balance-text').textContent = res.balance_rub + ' ₽';
+    renderExpiry(res.days_left, res.expires_at);
 
-      const useHref = PRIZES[idx]?.type === 'coin' ? '#icon-coin' : '#icon-hourglass';
-      document.getElementById('result-icon-svg').innerHTML = `<use href="${useHref}"/>`;
-      document.getElementById('result-label').textContent = res.prize.label;
-      document.getElementById('result-overlay').classList.add('show');
-      playWinChime();
+    const useHref = PRIZES[idx]?.type === 'coin' ? '#icon-coin' : '#icon-hourglass';
+    document.getElementById('result-icon-svg').innerHTML = `<use href="${useHref}"/>`;
+    document.getElementById('result-label').textContent = res.prize.label;
+    document.getElementById('result-overlay').classList.add('show');
+    hapticWin();
 
-      btn.textContent = 'Уже крутили сегодня';
-      document.getElementById('spin-note').textContent = 'Новый прокрут доступен завтра';
-      spinning = false;
-    }, SPIN_DURATION + 150);
+    btn.textContent = 'Уже крутили сегодня';
+    document.getElementById('spin-note').textContent = 'Новый прокрут доступен завтра';
+    spinning = false;
   } catch(e){
     toast(e.message);
     btn.disabled = false;
